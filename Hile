@@ -1,0 +1,139 @@
+-- Gift / Item Bring GUI System (PlayerModels İçin)
+-- Made by GPT-5 x Hasan 💪
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-----------------------------------------------------
+-- GUI OLUŞTURMA
+-----------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local Frame = Instance.new("Frame", ScreenGui)
+local BringButton = Instance.new("TextButton", Frame)
+local Title = Instance.new("TextLabel", Frame)
+
+ScreenGui.Name = "GiftBringGUI"
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Position = UDim2.new(0.5, -100, 0.9, -50)
+Frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Frame.BorderSizePixel = 0
+Frame.BackgroundTransparency = 0.2
+Frame.Visible = true
+Frame.Active = true
+Frame.Draggable = true
+
+Title.Text = "🎁 Gift Bring"
+Title.Size = UDim2.new(1, 0, 0.5, 0)
+Title.BackgroundTransparency = 1
+Title.TextColor3 = Color3.fromRGB(0,170,255)
+Title.Font = Enum.Font.GothamBold
+Title.TextScaled = true
+
+BringButton.Text = "🚀 Işınla"
+BringButton.Size = UDim2.new(1, -20, 0.4, 0)
+BringButton.Position = UDim2.new(0,10,0.55,0)
+BringButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+BringButton.TextColor3 = Color3.new(1,1,1)
+BringButton.Font = Enum.Font.GothamBold
+BringButton.TextScaled = true
+BringButton.AutoButtonColor = true
+
+-----------------------------------------------------
+-- SEÇME SİSTEMİ
+-----------------------------------------------------
+local selectedModel = nil
+local highlight = nil
+
+local function toggleSelect(target)
+	if not target or not target:IsDescendantOf(workspace.PlayerModels) then return end
+
+	-- Aynı modeli tekrar seçerse iptal et
+	if selectedModel == target then
+		if highlight then
+			highlight:Destroy()
+			highlight = nil
+		end
+		selectedModel = nil
+		return
+	end
+
+	-- Önceden seçili varsa temizle
+	if highlight then
+		highlight:Destroy()
+	end
+
+	-- Yeni hedefi seç
+	selectedModel = target
+	highlight = Instance.new("Highlight")
+	highlight.FillColor = Color3.fromRGB(0, 170, 255)
+	highlight.OutlineColor = Color3.fromRGB(0, 255, 255)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+	highlight.Parent = selectedModel
+end
+
+mouse.Button1Down:Connect(function()
+	local target = mouse.Target
+	if target then
+		local model = target:FindFirstAncestorOfClass("Model")
+		if model and model:IsDescendantOf(workspace.PlayerModels) then
+			toggleSelect(model)
+		end
+	end
+end)
+
+-----------------------------------------------------
+-- IŞINLAMA (BRING) SİSTEMİ
+-----------------------------------------------------
+BringButton.MouseButton1Click:Connect(function()
+	if not selectedModel then
+		warn("Seçili bir eşya yok!")
+		return
+	end
+
+	local curPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not curPos then return end
+	curPos = curPos.CFrame
+
+	local obj = selectedModel
+	local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+	if not part then
+		warn("Objede PrimaryPart yok!")
+		return
+	end
+
+	obj.PrimaryPart = part
+	local start = obj.PrimaryPart.CFrame
+	local duration = 1.5
+	local elapsed, step = 0, 0.03
+
+	task.spawn(function()
+		for i = 1, 60 do
+			ReplicatedStorage.Interaction.ClientIsDragging:FireServer(obj)
+			task.wait()
+		end
+	end)
+
+	local loopConn
+	loopConn = RunService.Heartbeat:Connect(function()
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and part then
+			player.Character.HumanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(3,0,0), part.Position)
+		end
+	end)
+
+	while elapsed < duration do
+		local alpha = elapsed / duration
+		obj.PrimaryPart.CFrame = start:Lerp(curPos, alpha)
+		elapsed += step
+		task.wait(step)
+	end
+
+	obj.PrimaryPart.CFrame = curPos
+	obj.PrimaryPart.AssemblyLinearVelocity = Vector3.new(0,0,0)
+	if loopConn then loopConn:Disconnect() end
+
+	print("✅ Işınlama tamamlandı:", obj.Name)
+end)
