@@ -1,0 +1,131 @@
+-- Gift / Item Bring GUI System (PlayerModels İçin)
+-- Made by GPT-5 x Hasan 💪
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-----------------------------------------------------
+-- GUI OLUŞTURMA
+-----------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local Frame = Instance.new("Frame", ScreenGui)
+local BringButton = Instance.new("TextButton", Frame)
+local Title = Instance.new("TextLabel", Frame)
+
+ScreenGui.Name = "GiftBringGUI"
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Position = UDim2.new(0.5, -100, 0.9, -50)
+Frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Frame.BorderSizePixel = 0
+Frame.BackgroundTransparency = 0.2
+Frame.Active = true
+Frame.Draggable = true
+
+Title.Text = "🎁 Gift Bring (Group Select)"
+Title.Size = UDim2.new(1, 0, 0.5, 0)
+Title.BackgroundTransparency = 1
+Title.TextColor3 = Color3.fromRGB(0,170,255)
+Title.Font = Enum.Font.GothamBold
+Title.TextScaled = true
+
+BringButton.Text = "🚀 Işınla"
+BringButton.Size = UDim2.new(1, -20, 0.4, 0)
+BringButton.Position = UDim2.new(0,10,0.55,0)
+BringButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+BringButton.TextColor3 = Color3.new(1,1,1)
+BringButton.Font = Enum.Font.GothamBold
+BringButton.TextScaled = true
+BringButton.AutoButtonColor = true
+
+-----------------------------------------------------
+-- SEÇME SİSTEMİ (GROUP SELECT)
+-----------------------------------------------------
+local selectedModels = {}
+local highlights = {}
+
+local function clearSelection()
+	for _, h in ipairs(highlights) do
+		if h and h.Parent then h:Destroy() end
+	end
+	selectedModels = {}
+	highlights = {}
+end
+
+local function selectGroup(model)
+	clearSelection()
+	if not model or not model:IsDescendantOf(workspace.PlayerModels) then return end
+
+	local modelName = model.Name
+
+	for _, m in ipairs(workspace.PlayerModels:GetChildren()) do
+		if m.Name == modelName then
+			table.insert(selectedModels, m)
+			local h = Instance.new("Highlight")
+			h.FillColor = Color3.fromRGB(0, 170, 255)
+			h.OutlineColor = Color3.fromRGB(0, 255, 255)
+			h.FillTransparency = 0.5
+			h.OutlineTransparency = 0
+			h.Parent = m
+			table.insert(highlights, h)
+		end
+	end
+
+	print("🔹 Seçilen grup:", modelName, "| Toplam:", #selectedModels)
+end
+
+mouse.Button1Down:Connect(function()
+	local target = mouse.Target
+	if not target then return end
+	local model = target:FindFirstAncestorOfClass("Model")
+	if model and model:IsDescendantOf(workspace.PlayerModels) then
+		selectGroup(model)
+	end
+end)
+
+-----------------------------------------------------
+-- IŞINLAMA (TOPLU)
+-----------------------------------------------------
+BringButton.MouseButton1Click:Connect(function()
+	if #selectedModels == 0 then
+		warn("Seçili bir eşya yok!")
+		return
+	end
+
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local savedCFrame = hrp.CFrame
+
+	for _, obj in ipairs(selectedModels) do
+		local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+		if part then
+			obj.PrimaryPart = part
+
+			-- Oyuncuyu gift’in yanına ışınla
+			local targetPos = part.Position + Vector3.new(5, 0, 0)
+			hrp.CFrame = CFrame.new(targetPos, part.Position)
+
+			-- Dragging sinyali
+			task.spawn(function()
+				for i = 1, 60 do
+					ReplicatedStorage.Interaction.ClientIsDragging:FireServer(obj)
+					task.wait()
+				end
+			end)
+
+			task.wait(0.25)
+
+			-- Gift’i kaydedilen konuma ışınla
+			obj:SetPrimaryPartCFrame(savedCFrame)
+			obj.PrimaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+
+			task.wait(0.2)
+			hrp.CFrame = savedCFrame
+		end
+	end
+
+	print("✅ Grup başarıyla getirildi! Toplam:", #selectedModels)
+end)
